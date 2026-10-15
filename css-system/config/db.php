@@ -1,14 +1,15 @@
 <?php
 /**
- * Database connection settings.
- * XAMPP (local): values below work out of the box.
- * InfinityFree (live): swap each value with the one from Client Area > MySQL Databases.
+ * Database connection settings. Secrets live in config/db.local.php (never shared/committed).
  */
-define('DB_HOST',    'sql313.infinityfree.com');             // InfinityFree → sqlXXX.infinityfree.com
-define('DB_NAME',    'if0_43074378_css_system');            // InfinityFree → if0_XXXXXXXX_css_system
-define('DB_USER',    'if0_43074378');             // InfinityFree → if0_XXXXXXXX
-define('DB_PASS',    'YSqmqXE8gKl'); // InfinityFree → your MySQL password
 define('DB_CHARSET', 'utf8mb4');
+
+$local = __DIR__ . '/db.local.php';
+if (!is_file($local)) {
+    http_response_code(500);
+    exit('Server is not configured.');
+}
+require $local;
 
 /**
  * Returns a single shared PDO connection (lazy singleton).
@@ -26,7 +27,6 @@ function getDB(): PDO
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ]);
         } catch (PDOException $e) {
-            // Never show the real reason to visitors (it can reveal the host and user name); it goes to the server log.
             error_log('CSS DB connection failed: ' . $e->getMessage());
             http_response_code(500);
             exit('Database connection failed. Please tell the administrator.');

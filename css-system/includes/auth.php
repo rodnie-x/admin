@@ -72,7 +72,8 @@ function isLoggedIn(): bool
         $row = $st->fetch();
     }
 
-    if ($stale || !$row || $row['status'] !== 'active') {
+    if ($stale || !$row || $row['status'] !== 'active'
+        || (int)($row['session_epoch'] ?? 0) !== (int)($_SESSION['epoch'] ?? 0)) {
         sessionEndReason($stale ? 'expired' : 'ended');
         $_SESSION = [];
         session_regenerate_id(true);
@@ -183,6 +184,7 @@ function attemptLogin(string $username, string $password): array
     $_SESSION['username']  = $user['username'];
     $_SESSION['full_name'] = $user['full_name'];
     $_SESSION['role']      = $user['role_name'];
+    $_SESSION['epoch']     = (int)($user['session_epoch'] ?? 0);
     $_SESSION['must_change'] = !empty($user['must_change_password']) ? 1 : 0;
 
     logAudit($user['id'], 'LOGIN', 'users', $user['id'], 'Successful login');

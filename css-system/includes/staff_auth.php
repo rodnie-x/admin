@@ -125,9 +125,9 @@ function staffRegister(array $in): array
     if (!staffIsGmail($email)) {
         $errors[] = 'Enter a valid Gmail address, like name@gmail.com.';
     }
-    if (strlen($password) < 8 || strlen($password) > 72
-        || !preg_match('/[A-Za-z]/', $password) || !preg_match('/\d/', $password)) {
-        $errors[] = 'Password must be 8 to 72 characters with at least one letter and one number.';
+    require_once __DIR__ . '/password_policy.php';
+    foreach (passwordProblems($password, [$fullName, $email]) as $m) {
+        $errors[] = $m;
     }
     if ($errors) {
         return ['ok' => false, 'errors' => $errors, 'pending' => false];

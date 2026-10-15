@@ -6,6 +6,7 @@
  */
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/password_policy.php';
 requireLogin();   // lets this page and logout.php through even while a change is required
 
 $pdo    = getDB();
@@ -31,8 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['pw_change_fails'] = array_values($tries);
         $errors[] = 'Your current password is not correct.';
     } else {
-        if (strlen($new) < 10 || strlen($new) > 72 || !preg_match('/[A-Za-z]/', $new) || !preg_match('/\d/', $new)) {
-            $errors[] = 'The new password needs 10 to 72 characters, with at least one letter and one number.';
+        foreach (passwordProblems($new, [$u['username'] ?? '']) as $m) {
+            $errors[] = $m;
         }
         if ($new !== $conf) {
             $errors[] = 'The two new passwords do not match.';
@@ -40,20 +41,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (hash_equals($cur, $new) || strcasecmp($new, 'Admin@123') === 0) {
             $errors[] = 'Choose a password different from the current one and from the default.';
         }
-        if (stripos($new, (string)$u['username']) !== false) {
-            $errors[] = 'The password must not contain your username.';
-        }
     }
 
     if (!$errors) {
         try {
-            $pdo->prepare('UPDATE users SET password_hash = ?, must_change_password = 0, failed_attempts = 0, locked_until = NULL WHERE id = ?')
+            $pdo->prepare('UPDATE users SET password_hash = ?, must_change_password = 0, session_epoch=session_epoch+1, failed_attempts = 0, locked_until = NULL WHERE id = ?')
                 ->execute([password_hash($new, PASSWORD_DEFAULT), (int)$_SESSION['user_id']]);
         } catch (PDOException $ex) {
-            // The column is missing (sql/admin_must_change.sql was not run yet): still save the password
+            // The columns are missing (sql/security_hardening.sql was not run yet): still save the password
             $pdo->prepare('UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?')
                 ->execute([password_hash($new, PASSWORD_DEFAULT), (int)$_SESSION['user_id']]);
+            try {
+                $pdo->prepare('UPDATE users SET must_change_password = 0 WHERE id = ?')->execute([(int)$_SESSION['user_id']]);
+            } catch (PDOException $ex2) { /* column truly missing */ }
         }
+        try {
+            $st = $pdo->prepare('SELECT session_epoch FROM users WHERE id=?');
+            $st->execute([(int)$_SESSION['user_id']]);
+            $_SESSION['epoch'] = (int)$st->fetchColumn();
+        } catch (PDOException $ex) { /* column missing */ }
         logAudit((int)$_SESSION['user_id'], 'UPDATE', 'users', (int)$_SESSION['user_id'], 'Password changed by the user');
         session_regenerate_id(true);
         unset($_SESSION['pw_change_fails'], $_SESSION['must_change']);

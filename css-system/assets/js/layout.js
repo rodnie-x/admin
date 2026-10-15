@@ -30,9 +30,9 @@
   document.addEventListener('submit', function (e) {
     var f = e.target;
     if (!f || !f.hasAttribute || !f.hasAttribute('data-prompt-password')) return;
-    var pw = prompt('Enter a new password for this user (min. 8 characters):');
-    if (!pw || pw.length < 8) {
-      if (pw !== null) alert('Password must be at least 8 characters.');
+    var pw = prompt('Enter a new password for this user (min. 10 characters, letter + number):');
+    if (!pw || pw.length < 10) {
+      if (pw !== null) alert('Password must be at least 10 characters with a letter and a number.');
       e.preventDefault();
       return;
     }
